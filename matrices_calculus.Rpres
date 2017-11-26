@@ -1,0 +1,267 @@
+<style>
+
+.reveal section img {
+  border: 0px;
+  box-shadow: 0 0 0 0;
+}
+.reveal table td {
+  border: 0px;
+}
+
+.reveal table {
+  border: 0px;
+}
+
+.reveal h1 {
+  font-size: 2em;
+}
+
+.reveal h3 {
+  font-size: 1.2em;
+}
+
+.reveal figcaption {
+  font-size: 0.4em;
+}
+
+.small-code pre code {
+  font-size: 1em;
+}
+
+.reveal .smalltext {
+  font-size: 0.75em;
+}
+
+.reveal .mediumtext {
+  font-size: 0.85em;
+}
+
+</style>
+
+
+What every interested ML / DL developer should know about matrices and calculus
+========================================================
+author: Sigrid Keydana, Trivadis
+date: 
+autosize: true
+incremental:false
+width: 1400
+height: 900
+
+
+About me & my employer
+========================================================
+class:mediumtext
+
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Trivadis
+- DACH-based IT consulting and service company, from traditional technologies to big data/machine learning/data science
+
+My background
+- from psychology/statistics via software development and database engineering to data science and ML/DL
+
+My passion
+- machine learning and deep learning
+- data science and (Bayesian) statistics
+- explanation/understanding over prediction accuracy
+
+Where to find me
+- blog: http://recurrentnull.wordpress.com
+- twitter: @zkajdan
+
+
+========================================================
+type:prompt
+
+&nbsp; 
+
+&nbsp; 
+
+<h1>
+Why should I know about calculus?
+</h1>
+
+
+CIFAR-10 dataset
+========================================================
+
+&nbsp;
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=FALSE, warning=FALSE, message=FALSE,
+                      cache = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(gridExtra)
+library(ggfortify)
+library(tensorflow)
+(K <- keras::backend())
+library(keras)
+library(EBImage)
+source("load_frogs_ships.R")
+source("functions.R")
+```
+
+```{r}
+layout(matrix(1:20, 4, 5))
+
+for (i in 1:20) {
+  img <- EBImage::transpose(Image(data = x_train[i, , , ], colormode = "Color"))
+  display(img, method="raster", all = TRUE)
+}
+
+```
+
+
+
+
+Ship or frog?
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+- We've trained a small convnet from scratch to distinguish between ships and frogs, specifically.
+- After very few epochs, it tells both classes apart with more than 97% accuracy on the test set.
+- Now let's pick one ship, specifically...
+
+```{r,  fig.width=12, fig.height=12}
+poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
+some_ship <- x_train_combined[5007, , ,  ,drop = FALSE]
+poor_frog_img <- x_train_combined[9, , , ]
+some_ship_img <- x_train_combined[5007, , , ] 
+
+layout(1)
+plot_as_image(some_ship_img)
+```
+
+... and predict it's class probability:
+
+```{r}
+model_name <- "frogs_ships_conv.h5"
+model <- load_model_hdf5(model_name)
+model %>% predict_proba(some_ship)
+```
+
+
+So let's make a small change to that ship...
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+```{r}
+model_name <- "frogs_ships_conv.h5"
+model <- load_model_hdf5(model_name)
+
+target <- model %>% predict_classes(poor_frog)
+target_variable = K$variable(target)
+
+loss <- metric_binary_crossentropy(model$output, target_variable)
+gradients <- K$gradients(loss, model$input) 
+input <- model$input
+output <- model$output
+sess <- tf$Session()
+sess$run(tf$global_variables_initializer())
+evaluated_gradients <- sess$run(gradients,
+                                feed_dict = dict(input = some_ship,
+                                                 output = model %>% predict_proba(some_ship)))
+ship_grads <- evaluated_gradients[[1]]
+sgn_ship_grads <- sign(ship_grads)
+
+adv <- some_ship + sgn_ship_grads
+model %>% predict_proba(adv)
+model %>% predict_classes(adv)
+
+scale_factor <- seq(0.01,0.5, by=0.01)
+sapply(scale_factor, function(x) model %>% predict_proba(some_ship + sgn_ship_grads * x))
+
+```
+
+
+What's going on?
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+
+Let's step back from more complicated architectures for a second and look at straightforward logistic regression (using Keras though here too):
+
+&nbsp;
+
+```{r, eval=FALSE, echo=TRUE}
+model <- keras_model_sequential()
+model %>%
+  layer_dense(units = 1,
+              input_shape = 3072) %>%
+  layer_activation("sigmoid")
+
+model %>% compile(optimizer = optimizer_sgd(lr = 0.001), 
+                  loss = "binary_crossentropy",
+                  metrics = "accuracy")
+```
+
+
+&nbsp;
+
+When does this model say _frog_ (coded as 0) and when _ship_ (coded as 1)?
+
+
+
+Sigmoid activation function
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+$sigmoid(x) = \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$
+
+&nbsp;
+
+
+```{r}
+sigmoid <- function(x) 1/(1 + exp(-x))
+plot(sigmoid(-10:10), type = "l")
+```
+
+
+&nbsp;
+
+When $\mathbf{w}^T\mathbf{x} + b$ > 0, sigmoid(x) > 0.5, and we get "ship".
+
+When $\mathbf{w}^T\mathbf{x} + b$ < 0, sigmoid(x) < 0.5, and we get "frog".
+
+
+Manipulating the dot product 
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+
+
