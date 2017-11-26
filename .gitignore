@@ -1,0 +1,10 @@
+*.h5
+.Rhistory
+.Rprofile
+Figs/
+*-cache/
+*.html
+*.md
+*.pdf
+tri_logo_high.jpg
+cube3.png
