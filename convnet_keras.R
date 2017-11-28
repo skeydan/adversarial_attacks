@@ -77,12 +77,14 @@ model %>% predict_proba(x_test_combined) %>% summary()
 
 
 # poor frog
-poor_frog <- x_train_combined[9, , , ,drop = FALSE]
-some_ship <- x_train_combined[5002, , , ,drop = FALSE]
+poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
+some_ship <- x_train_combined[5007, , ,  ,drop = FALSE]
+poor_frog_img <- x_train_combined[9, , , ]
+some_ship_img <- x_train_combined[5007, , , ] 
 
 layout(1)
-plot_as_image(x_train_combined[9, , , ])
-plot_as_image(x_train_combined[5007, , , ])
+plot_as_image(poor_frog_img)
+plot_as_image(some_ship_img)
 
 model %>% predict_proba(poor_frog)
 model %>% predict_proba(some_ship)
@@ -114,6 +116,11 @@ scale_factor <- seq(0.1, 0.9, by=0.1)
 sapply(scale_factor, function(x) model %>% predict_proba(poor_frog + sgn_frog_grads * x))
 
 # ship
+target <- model %>% predict_classes(some_ship)
+target_variable = K$variable(target)
+
+loss <- metric_binary_crossentropy(model$output, target_variable)
+gradients <- K$gradients(loss, model$input) # gradient with respect to input
 input <- model$input
 output <- model$output
 sess$run(tf$global_variables_initializer())
@@ -126,10 +133,15 @@ hist(ship_grads)
 sgn_ship_grads <- sign(ship_grads)
 sgn_ship_grads %>% hist()
 
-adv <- some_ship + sgn_ship_grads
+adv <- some_ship + 0.122 * sgn_ship_grads
+adv <- ifelse(adv > 1, 1, adv)
+adv <- ifelse(adv < 0, 0, adv)
+adv[1, , , 2] %>% max()
+adv[1, , , 2] %>% min()
 model %>% predict_proba(adv)
 model %>% predict_classes(adv)
+plot_as_image(adv[1, , , ])
 
-scale_factor <- seq(0.01,0.5, by=0.01)
+scale_factor <- seq(0.1,0.5, by=0.1)
 sapply(scale_factor, function(x) model %>% predict_proba(some_ship + sgn_ship_grads * x))
 

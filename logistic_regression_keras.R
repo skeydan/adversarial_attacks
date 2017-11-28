@@ -124,8 +124,6 @@ plot_as_image(adv_2d)
 # frog
 target <- model %>% predict_classes(poor_frog)
 target
-#target <- to_categorical(target, 2)
-#target
 target_variable = K$variable(target)
 target_variable
 
@@ -147,6 +145,11 @@ sapply(scale_factor, function(x) model %>% predict_proba(poor_frog + frog_grads 
 input <- model$input
 output <- model$output
 sess$run(tf$global_variables_initializer())
+target <- model %>% predict_classes(some_ship)
+target_variable = K$variable(target)
+
+loss <- metric_binary_crossentropy(model$output, target_variable)
+gradients <- K$gradients(loss, model$input) # gradient with respect to input
 evaluated_gradients <- sess$run(gradients,
                                 feed_dict = dict(input = some_ship,
                                                  output = model %>% predict_proba(some_ship)))

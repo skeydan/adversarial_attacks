@@ -83,7 +83,7 @@ type:prompt
 &nbsp; 
 
 <h1>
-Why should I know about calculus?
+Part 1: Why should I know about calculus?
 </h1>
 
 
@@ -96,6 +96,7 @@ CIFAR-10 dataset
 knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
                       echo=FALSE, warning=FALSE, message=FALSE,
                       cache = TRUE)
+options(digits = 3, scipen = 6)
 ```
 
 ```{r}
@@ -105,8 +106,8 @@ library(dplyr)
 library(gridExtra)
 library(ggfortify)
 library(tensorflow)
-(K <- keras::backend())
 library(keras)
+K <- keras::backend()
 library(EBImage)
 source("load_frogs_ships.R")
 source("functions.R")
@@ -138,7 +139,7 @@ Ship or frog?
 - After very few epochs, it tells both classes apart with more than 97% accuracy on the test set.
 - Now let's pick one ship, specifically...
 
-```{r,  fig.width=12, fig.height=12}
+```{r,  fig.width=3, fig.height=3}
 poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
 some_ship <- x_train_combined[5007, , ,  ,drop = FALSE]
 poor_frog_img <- x_train_combined[9, , , ]
@@ -153,7 +154,8 @@ plot_as_image(some_ship_img)
 ```{r}
 model_name <- "frogs_ships_conv.h5"
 model <- load_model_hdf5(model_name)
-model %>% predict_proba(some_ship)
+ship_prob <- model %>% predict_proba(some_ship)
+print(paste("Predicted probability for ship: ", ship_prob))
 ```
 
 
@@ -165,11 +167,15 @@ So let's make a small change to that ship...
 
 &nbsp;
 
-```{r}
+```{r,fig.width=3, fig.height=3}
+library(tensorflow)
+library(keras)
+K <- keras::backend()
+
 model_name <- "frogs_ships_conv.h5"
 model <- load_model_hdf5(model_name)
 
-target <- model %>% predict_classes(poor_frog)
+target <- model %>% predict_classes(some_ship)
 target_variable = K$variable(target)
 
 loss <- metric_binary_crossentropy(model$output, target_variable)
@@ -178,24 +184,26 @@ input <- model$input
 output <- model$output
 sess <- tf$Session()
 sess$run(tf$global_variables_initializer())
+
 evaluated_gradients <- sess$run(gradients,
                                 feed_dict = dict(input = some_ship,
                                                  output = model %>% predict_proba(some_ship)))
 ship_grads <- evaluated_gradients[[1]]
 sgn_ship_grads <- sign(ship_grads)
 
-adv <- some_ship + sgn_ship_grads
-model %>% predict_proba(adv)
-model %>% predict_classes(adv)
+adv <- some_ship + 0.123 * sgn_ship_grads
+adv <- ifelse(adv > 1, 1, adv)
+adv <- ifelse(adv < 0, 0, adv)
+plot_as_image(adv[1, , , ])
 
-scale_factor <- seq(0.01,0.5, by=0.01)
-sapply(scale_factor, function(x) model %>% predict_proba(some_ship + sgn_ship_grads * x))
-
+new_ship_prob <- model %>% predict_proba(adv)
+print(paste("Predicted probability for ship: ", new_ship_prob))
 ```
 
 
 What's going on?
 ========================================================
+class:smallcode
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
@@ -204,7 +212,7 @@ What's going on?
 &nbsp;
 
 
-Let's step back from more complicated architectures for a second and look at straightforward logistic regression (using Keras though here too):
+Let's step back from more complicated architectures for a second and look at straightforward logistic regression (with Keras):
 
 &nbsp;
 
@@ -227,7 +235,8 @@ When does this model say _frog_ (coded as 0) and when _ship_ (coded as 1)?
 
 
 
-Sigmoid activation function
+
+Attacking logistic regression, way 1
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -241,9 +250,9 @@ $sigmoid(x) = \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$
 &nbsp;
 
 
-```{r}
+```{r, fig.width=8, fig.height=4}
 sigmoid <- function(x) 1/(1 + exp(-x))
-plot(sigmoid(-10:10), type = "l")
+plot(-10:10, sigmoid(-10:10), type = "l")
 ```
 
 
@@ -263,5 +272,173 @@ Manipulating the dot product
 
 &nbsp;
 
+2 slides
+
+tbd pic cosine similarity
+
+tbd manipulation example
+
+
+OK that was just simple logistic regression... 
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+... what can we do when we have _real neural networks_?
+
+<figure>
+    <img src='deep_nn.png' width='60%' />
+    <figcaption>Source: https://uwaterloo.ca/data-science/sites/ca.data-science/files/uploads/files/lecture_1_0.pdf</figcaption>
+</figure>
+
+
+Attacking logistic regression, way 2
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+&nbsp;
+
+Normal training has the network _get better_ in doing the _right_ classification.
+
+How about we have it _get worse_, or put differently, have an _alternative definition of what is right_?
+
+
+
+Minimizing the cost: Gradient Descent
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+In optimization, normally we follow the gradient _downward_ to reach the/a minimum of the cost function.
+
+&nbsp;
+
+<figure>
+    <img src='convex.png' width='50%'/>
+     <figcaption>Source: Goodfellow et al. 2016, <a href='http://www.deeplearningbook.org/'>Deep Learning</a>
+</figure>
+
+
+Gradient Descent example: Least Squares
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Imagine we want to minimize _mean squared error_, the sum of the squared deviations of our predictions $Ax$ from the ground truth $b$:
+
+We repeatedly subtract a fraction of the gradient from our estimate of the coefficients, until we reach an error that is "good enough".
+
+&nbsp;
+
+<figure>
+    <img src='gradient_descent_LS.png' width='80%'/>
+     <figcaption>Source: Goodfellow et al. 2016, <a href='http://www.deeplearningbook.org/'>Deep Learning</a>
+</figure>
+
+
+How about...
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+... we actually try to _maximize_ the error, not minimize it?
+
+Let's step back for a second and see this in context.
+
+
+
+What a neural network needs for learning
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+- a cost function: How different is my prediction from my target?
+- a way to learn: How do I adapt my _weights_ such that my predictions get better?
+- a way to back propagate the cost: How do weights _earlier_ in the network change the predictions (and thus, the cost)
+
+Cost function and optimization we've seen,- remains...
+
+
+<figure>
+    <img src='deep_nn.png' width='20%' />
+    <figcaption>Source: https://uwaterloo.ca/data-science/sites/ca.data-science/files/uploads/files/lecture_1_0.pdf</figcaption>
+</figure>
+
+Backpropagation!
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+- basically, just the chain rule: $\frac{dz}{dx} = \frac{dz}{dy} \frac{dy}{dx}$
+- chained over several layers:
+&nbsp;
+<figure>
+    <img src='backprop2.png' width='60%'/>
+    <figcaption>Source: <a href=https://colah.github.io/posts/2015-08-Backprop/>https://colah.github.io/posts/2015-08-Backprop/</a></figcaption>
+</figure>
+
+
+
+Climbing the gradient, fast (Fast Gradient Sign Method, FGSM)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+2 slides
+
+tbd why it works
+
+tbd effect
+
+
+
+
+Takeaway: Optimization and Calculus
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+
+========================================================
+type:prompt
+
+&nbsp; 
+
+&nbsp; 
+
+<h1>
+Part 2: Why should I know about matrices?
+</h1>
 
 
