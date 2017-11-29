@@ -39,7 +39,7 @@
 </style>
 
 
-What every interested ML / DL developer should know about matrices and calculus
+I'm a developer, why should I care about matrices or calculus?
 ========================================================
 author: Sigrid Keydana, Trivadis
 date: 
@@ -113,6 +113,11 @@ source("load_frogs_ships.R")
 source("functions.R")
 ```
 
+
+10 classes, 32 x 32 px, popular benchmarking dataset for image recognition
+
+&nbsp;
+
 ```{r}
 layout(matrix(1:20, 4, 5))
 
@@ -124,6 +129,9 @@ for (i in 1:20) {
 ```
 
 
+&nbsp;
+
+Let's just pick two classes, keeping it simple...
 
 
 Ship or frog?
@@ -135,9 +143,9 @@ Ship or frog?
 
 &nbsp;
 
-- We've trained a small convnet from scratch to distinguish between ships and frogs, specifically.
+- We've trained a small Convolutional Neural Network (CNN) from scratch to distinguish between ships and frogs, specifically.
 - After very few epochs, it tells both classes apart with more than 97% accuracy on the test set.
-- Now let's pick one ship, specifically...
+- Now let's pick some ship ...
 
 ```{r,  fig.width=3, fig.height=3}
 poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
@@ -149,13 +157,17 @@ layout(1)
 plot_as_image(some_ship_img)
 ```
 
+&nbsp;
+
 ... and predict it's class probability:
+
+&nbsp;
 
 ```{r}
 model_name <- "frogs_ships_conv.h5"
 model <- load_model_hdf5(model_name)
 ship_prob <- model %>% predict_proba(some_ship)
-print(paste("Predicted probability for ship: ", ship_prob))
+paste("Predicted probability for ship: ", ship_prob)
 ```
 
 
@@ -197,8 +209,20 @@ adv <- ifelse(adv < 0, 0, adv)
 plot_as_image(adv[1, , , ])
 
 new_ship_prob <- model %>% predict_proba(adv)
+```
+
+&nbsp;
+
+... and see what the net says now:
+
+&nbsp;
+
+```{r}
 print(paste("Predicted probability for ship: ", new_ship_prob))
 ```
+
+
+
 
 
 What's going on?
@@ -218,14 +242,12 @@ Let's step back from more complicated architectures for a second and look at str
 
 ```{r, eval=FALSE, echo=TRUE}
 model <- keras_model_sequential()
+
 model %>%
-  layer_dense(units = 1,
-              input_shape = 3072) %>%
+  layer_dense(units = 1, input_shape = 3072) %>%
   layer_activation("sigmoid")
 
-model %>% compile(optimizer = optimizer_sgd(lr = 0.001), 
-                  loss = "binary_crossentropy",
-                  metrics = "accuracy")
+model %>% compile(optimizer = optimizer_sgd(lr = 0.001), loss = "binary_crossentropy")
 ```
 
 
@@ -236,7 +258,7 @@ When does this model say _frog_ (coded as 0) and when _ship_ (coded as 1)?
 
 
 
-Attacking logistic regression, way 1
+Logistic regression decision logic
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -245,9 +267,10 @@ Attacking logistic regression, way 1
 
 &nbsp;
 
-$sigmoid(x) = \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$
+Logistic regression uses the _sigmoid_ function to decide which class to output, 0 or 1.
 
-&nbsp;
+$sigmoid(x,w) = \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$
+
 
 
 ```{r, fig.width=8, fig.height=4}
@@ -256,14 +279,12 @@ plot(-10:10, sigmoid(-10:10), type = "l")
 ```
 
 
-&nbsp;
+When $\mathbf{w}^T\mathbf{x} + b$ > 0, sigmoid(x,w) > 0.5, and we get "ship" (1).
 
-When $\mathbf{w}^T\mathbf{x} + b$ > 0, sigmoid(x) > 0.5, and we get "ship".
-
-When $\mathbf{w}^T\mathbf{x} + b$ < 0, sigmoid(x) < 0.5, and we get "frog".
+When $\mathbf{w}^T\mathbf{x} + b$ < 0, sigmoid(x,w) < 0.5, and we get "frog" (0).
 
 
-Manipulating the dot product 
+So if we want the algorithm to say "0", for frog ...
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -272,14 +293,28 @@ Manipulating the dot product
 
 &nbsp;
 
-2 slides
 
-tbd pic cosine similarity
+$sigmoid(x,w)= \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$ 
 
-tbd manipulation example
+somehow has to end up < 0.5!
+
+&nbsp;
+
+&nbsp;
+
+Let's take a small excerpt of this dot product, $\mathbf{w}^T\mathbf{x}$, and look how we could make it smaller:
+
+&nbsp;
+
+$w_1^Tx_1 + w_2^Tx_2 + w_3^Tx_3 ...$
+
+&nbsp;
 
 
-OK that was just simple logistic regression... 
+This will get smaller when for all positive $w_i$, we decrease $x_i$, and for all negative $w_i$, we increase $x_i$.
+
+
+Let's do this!
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -288,7 +323,22 @@ OK that was just simple logistic regression...
 
 &nbsp;
 
-... what can we do when we have _real neural networks_?
+tbd get the weights
+
+
+OK, but that was just simple logistic regression... 
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+
+&nbsp;
+
+... what can we do when we have _deep neural networks_?
+
+And thus: several layers of weights in the game?
+
 
 <figure>
     <img src='deep_nn.png' width='60%' />
@@ -296,7 +346,7 @@ OK that was just simple logistic regression...
 </figure>
 
 
-Attacking logistic regression, way 2
+Training a network, the evil way
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -322,6 +372,10 @@ Minimizing the cost: Gradient Descent
 
 In optimization, normally we follow the gradient _downward_ to reach the/a minimum of the cost function.
 
+&nbsp:
+
+In this graphic, cost is a quadratic function, e.g., _mean squared error_:
+
 &nbsp;
 
 <figure>
@@ -330,7 +384,7 @@ In optimization, normally we follow the gradient _downward_ to reach the/a minim
 </figure>
 
 
-Gradient Descent example: Least Squares
+Cost for logistic regression
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -338,19 +392,14 @@ Gradient Descent example: Least Squares
 
 &nbsp;
 
-Imagine we want to minimize _mean squared error_, the sum of the squared deviations of our predictions $Ax$ from the ground truth $b$:
+In two-class classification (be it shallow logistic regression or a deep convnet), the loss function to minimize is cross entropy:
 
-We repeatedly subtract a fraction of the gradient from our estimate of the coefficients, until we reach an error that is "good enough".
+$- \sum_j{t_j log(y_j)}$
 
-&nbsp;
-
-<figure>
-    <img src='gradient_descent_LS.png' width='80%'/>
-     <figcaption>Source: Goodfellow et al. 2016, <a href='http://www.deeplearningbook.org/'>Deep Learning</a>
-</figure>
+Normally we'd try to minimize that cost function...
 
 
-How about...
+Being evil
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -358,9 +407,11 @@ How about...
 
 &nbsp;
 
-... we actually try to _maximize_ the error, not minimize it?
+... now we _maximize_ the error instead of minimizing it!
 
-Let's step back for a second and see this in context.
+&nbsp;
+
+Let's step back for a second and see this how this works in context.
 
 
 
@@ -373,10 +424,14 @@ What a neural network needs for learning
 &nbsp;
 
 - a cost function: How different is my prediction from my target?
-- a way to learn: How do I adapt my _weights_ such that my predictions get better?
-- a way to back propagate the cost: How do weights _earlier_ in the network change the predictions (and thus, the cost)
+  (This we've seen already.)
+- a way to learn (optimization): How do I adapt my _weights_ such that my predictions get better?
+  (This we've looked at, too.)
+- a way to back propagate the cost: How do weights _earlier_ in the network change the predictions (and thus, the cost)?
 
-Cost function and optimization we've seen,- remains...
+&nbsp;
+
+Enter ...
 
 
 <figure>
@@ -394,13 +449,95 @@ Backpropagation!
 
 - basically, just the chain rule: $\frac{dz}{dx} = \frac{dz}{dy} \frac{dy}{dx}$
 - chained over several layers:
+
 &nbsp;
+
 <figure>
     <img src='backprop2.png' width='60%'/>
     <figcaption>Source: <a href=https://colah.github.io/posts/2015-08-Backprop/>https://colah.github.io/posts/2015-08-Backprop/</a></figcaption>
 </figure>
 
 
+Learning weights by backpropagation (1)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+We'll gradually build up the gradient of the loss with respect to $y_i$, the output of the last hidden layer, and the weights $w_{ij}$, respectively.
+
+
+Here 
+- $i$ and $j$ are layers of the network ($j$ being the output layer)
+- $y_l$ is the output of layer $l$
+- $z_l$ is the aggregated input going into layer $l$ (before the activation function is applied)
+
+<figure>
+    <img src='backprop4.png' width="20%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+
+
+Learning weights by backpropagation (2)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+<figure>
+    <img src='backprop4.png' width="20%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+
+Step 1:
+
+At the output layer $j$, we compare class prediction and actual class, using cross entropy: $- \sum_n{t_n log(y_n)}$ 
+
+The gradient $ ... $ describes how the error E changes as the prediction changes. 
+   
+
+Learning weights by backpropagation (2)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+<figure>
+    <img src='backprop4.png' width="20%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+  
+2. Next is the question: How does the prediction/output change as the input to the final neuron (here: layer $j$) changes?
+
+   In the case of a logistic (sigmoid) neuron, this is described by the gradient $...$
+ 
+   
+
+
+Backprop, the evil way...
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+We can the same mechanics of loss calculation and backpropagation, just
+
+- we change the input, not the weights
+- we actually want to _maximize_ the loss
 
 Climbing the gradient, fast (Fast Gradient Sign Method, FGSM)
 ========================================================
