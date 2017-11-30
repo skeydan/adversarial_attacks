@@ -144,9 +144,9 @@ sapply(scale_factor, function(x) model %>% predict_proba(poor_frog + frog_grads 
 # ship
 input <- model$input
 output <- model$output
-sess$run(tf$global_variables_initializer())
 target <- model %>% predict_classes(some_ship)
 target_variable = K$variable(target)
+sess$run(tf$global_variables_initializer())
 
 loss <- metric_binary_crossentropy(model$output, target_variable)
 gradients <- K$gradients(loss, model$input) # gradient with respect to input

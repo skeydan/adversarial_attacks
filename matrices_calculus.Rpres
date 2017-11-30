@@ -24,7 +24,7 @@
   font-size: 0.4em;
 }
 
-.small-code pre code {
+.smallcode pre code {
   font-size: 1em;
 }
 
@@ -147,7 +147,7 @@ Ship or frog?
 - After very few epochs, it tells both classes apart with more than 97% accuracy on the test set.
 - Now let's pick some ship ...
 
-```{r,  fig.width=3, fig.height=3}
+```{r,  fig.width=2, fig.height=2}
 poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
 some_ship <- x_train_combined[5007, , ,  ,drop = FALSE]
 poor_frog_img <- x_train_combined[9, , , ]
@@ -167,7 +167,7 @@ plot_as_image(some_ship_img)
 model_name <- "frogs_ships_conv.h5"
 model <- load_model_hdf5(model_name)
 ship_prob <- model %>% predict_proba(some_ship)
-paste("Predicted probability for ship: ", ship_prob)
+paste("Predicted probability for ship: ", round(ship_prob, 4))
 ```
 
 
@@ -179,7 +179,7 @@ So let's make a small change to that ship...
 
 &nbsp;
 
-```{r,fig.width=3, fig.height=3}
+```{r,fig.width=2, fig.height=2}
 library(tensorflow)
 library(keras)
 K <- keras::backend()
@@ -218,7 +218,7 @@ new_ship_prob <- model %>% predict_proba(adv)
 &nbsp;
 
 ```{r}
-print(paste("Predicted probability for ship: ", new_ship_prob))
+print(paste("Predicted probability for ship: ", round(new_ship_prob,4)))
 ```
 
 
@@ -294,6 +294,9 @@ So if we want the algorithm to say "0", for frog ...
 &nbsp;
 
 
+&nbsp;
+
+
 $sigmoid(x,w)= \frac{1}{1 + e^{-\mathbf{w}^T\mathbf{x} + b}}$ 
 
 somehow has to end up < 0.5!
@@ -304,7 +307,6 @@ somehow has to end up < 0.5!
 
 Let's take a small excerpt of this dot product, $\mathbf{w}^T\mathbf{x}$, and look how we could make it smaller:
 
-&nbsp;
 
 $w_1^Tx_1 + w_2^Tx_2 + w_3^Tx_3 ...$
 
@@ -314,16 +316,60 @@ $w_1^Tx_1 + w_2^Tx_2 + w_3^Tx_3 ...$
 This will get smaller when for all positive $w_i$, we decrease $x_i$, and for all negative $w_i$, we increase $x_i$.
 
 
-Let's do this!
+Let's turn a cute frog into a ship...
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+Here's our frog...
+
+```{r, fig.width=2, fig.height=2}
+model_name <- "frogs_ships_logistic.h5"
+model <- load_model_hdf5(model_name)
+
+x_train_flat <- x_train_combined %>% apply(1, as.numeric)
+x_train_flat <- x_train_flat %>% t()
+poor_frog <- x_train_flat[9, , drop = FALSE]
+poor_frog_img <- x_train_combined[9, , , ]
+
+plot_as_image(poor_frog_img)
+```
+
+
+To produce a ship, now we want the dot product to get _bigger_.
+
+We extract the weights of the model and add them to the image, scaled by some factor.
+
+
+```{r, echo=TRUE}
+model <- load_model_hdf5(model_name)
+weights <- (model %>% get_weights())[[1]]
+adv <- poor_frog + t(weights)/6
+new_frog_prob <- model %>% predict_proba(adv)
+print(paste("Predicted probability for ship: ", round(new_frog_prob,4)))
+```
+
+&nbsp;
+
+How does this change the way our image _looks_?
+
+The frog who turned ship (1)
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 
-&nbsp;
+```{r, fig.width=2, fig.height=2}
+adv_2d <- adv
+dim(adv_2d) <- c(32,32,3)
+plot_as_image(adv_2d)
+```
 
-tbd get the weights
+
+The change is hardly visible - much less than with the first example that used a convnet.
 
 
 OK, but that was just simple logistic regression... 
@@ -370,7 +416,7 @@ Minimizing the cost: Gradient Descent
 
 &nbsp;
 
-In optimization, normally we follow the gradient _downward_ to reach the/a minimum of the cost function.
+In optimization, normally we iteratively _subtract_ (a fraction of) the gradient to reach the/a minimum of the cost function.
 
 &nbsp:
 
@@ -384,7 +430,7 @@ In this graphic, cost is a quadratic function, e.g., _mean squared error_:
 </figure>
 
 
-Cost for logistic regression
+Loss for logistic regression
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -392,11 +438,18 @@ Cost for logistic regression
 
 &nbsp;
 
-In two-class classification (be it shallow logistic regression or a deep convnet), the loss function to minimize is cross entropy:
+In two-class classification (be it shallow logistic regression or a deep convnet), the loss to minimize is binary cross entropy:
 
 $- \sum_j{t_j log(y_j)}$
 
-Normally we'd try to minimize that cost function...
+resp.
+
+$- (t\:log(y) + (1-t)\:log(1-y))$ for the binary case.
+
+&nbsp;
+
+
+Normally we'd try to minimize that loss ...
 
 
 Being evil
@@ -486,22 +539,26 @@ Learning weights by backpropagation (2)
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
-<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 &nbsp; 
 
 <figure>
-    <img src='backprop4.png' width="20%"/>
+    <img src='backprop4.png' width="15%"/>
     <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
 
-Step 1:
+Step 1: Loss w.r.t. output (prediction)
 
-At the output layer $j$, we compare class prediction and actual class, using cross entropy: $- \sum_n{t_n log(y_n)}$ 
+At the output layer $j$, we compare class prediction $y_j$ and actual class $t$, using binary cross entropy/logistic loss: 
+$- (t\:log(y) + (1-t)\:log(1-y))$ 
 
-The gradient $ ... $ describes how the error E changes as the prediction changes. 
+The gradient 
+
+$\frac{dE}{dy_j} = - (\frac{t}{y} + (-1) \frac{1-t}{1-y}) = \frac{y-t}{y(1-y)}$ 
+
+describes how the error $E$ changes as the prediction $y_j$ changes. 
    
 
 Learning weights by backpropagation (2)
@@ -513,17 +570,94 @@ Learning weights by backpropagation (2)
 &nbsp; 
 
 <figure>
-    <img src='backprop4.png' width="20%"/>
+    <img src='backprop4.png' width="15%"/>
     <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
   
-2. Next is the question: How does the prediction/output change as the input to the final neuron (here: layer $j$) changes?
+Step 2: How does the prediction/output $y_j$ change as the input $z_j$ to the final neuron changes?
 
-   In the case of a logistic (sigmoid) neuron, this is described by the gradient $...$
+In the case of a logistic (sigmoid) neuron with output $y_j$, this is described by the gradient
+
+$\frac{dy_j}{dz_j} = y_j(1-y_j)$.
+
+ 
+Learning weights by backpropagation (3)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+<figure>
+    <img src='backprop4.png' width="15%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+  
+Step 3a: How does the input $z_j$ to the final layer change as the weight $w_{ij}$ changes?
+
+Here the gradient is 
+
+$\frac{dz_j}{dw_{ij}} = y_i$, 
+
+that is, the output of layer $i$.
+
+ 
+Learning weights by backpropagation (4)
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+<figure>
+    <img src='backprop4.png' width="15%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+  
+Step 3b: How does the input $z_j$ to the final layer change as the output of layer $i$ changes?
+
+Here we have to take into account all connections a neuron $y_i$ has to the output layer: The gradient is 
+
+$\sum_j \frac{dz_j}{dy_i} = \sum_j w_{ij}$,
+
+that is, the sum of the weights going out of $y_i$.
+
  
    
+Learning weights by backpropagation: Putting it all together
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp; 
+
+<figure>
+    <img src='backprop4.png' width="15%"/>
+    <figcaption>Source: tbd</a></figcaption>
+</figure>
+
+&nbsp;
+  
+Now that we have the single gradients, we use the _chain rule_ to back propagate the error:
+
+The gradient of the loss w.r.t. $y_i$ is
+
+$\frac{dE}{dy_i} = \frac{y-t}{y(1-y)} y_j(1-y_j) \sum_j w_{ij}$
+
+Accordingly, we get the gradient of the loss w.r.t. $w_{ij}$ as
+
+$\frac{dE}{dy_i} = \frac{y-t}{y(1-y)} y_j(1-y_j) y_i$
+
+
 
 
 Backprop, the evil way...
@@ -537,9 +671,16 @@ Backprop, the evil way...
 We can the same mechanics of loss calculation and backpropagation, just
 
 - we change the input, not the weights
-- we actually want to _maximize_ the loss
+- we _maximize_ the loss by _adding_, not subtracting (some fraction of) the gradient 
 
-Climbing the gradient, fast (Fast Gradient Sign Method, FGSM)
+
+&nbsp;
+
+So instead of the weights, we'll extract the gradient from the model and add part of it to the input image.
+
+How do we find the best scaling factor?
+
+Enter: Fast Gradient Sign Method (FGSM)
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -548,16 +689,55 @@ Climbing the gradient, fast (Fast Gradient Sign Method, FGSM)
 
 &nbsp;
 
-2 slides
+As shown in Goodfellow et al., <a href="https://arxiv.org/pdf/1412.6572.pdf">Explaining and harnessing adversarial examples</a>, we can just take the sign of the gradient, scale it by a factor $\epsilon$, reflecting the "resolution" of the measurements, and add that to the input image:
 
-tbd why it works
-
-tbd effect
+$x = x + \epsilon \: sign(\nabla x (J(\theta, x ,y)))$
 
 
+Frog FGSM
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 
-Takeaway: Optimization and Calculus
+&nbsp;
+
+Here's our frog again ...
+
+```{r, fig.width=2, fig.height=2}
+x_train_flat <- x_train_combined %>% apply(1, as.numeric)
+x_train_flat <- x_train_flat %>% t()
+poor_frog <- x_train_flat[9, , drop = FALSE]
+poor_frog_img <- x_train_combined[9, , , ]
+
+plot_as_image(poor_frog_img)
+library(keras)
+K <- keras::backend()
+model_name <- "frogs_ships_logistic.h5"; model <- load_model_hdf5(model_name)
+```
+
+
+This time we get the gradient values, take their sign, and add that to the image, scaled by a factor $\epsilon$:
+
+```{r, echo=TRUE}
+input <- model$input; output <- model$output
+target <- model %>% predict_classes(poor_frog); target_variable = K$variable(target)
+loss <- metric_binary_crossentropy(model$output, target_variable)
+gradients <- K$gradients(loss, model$input) 
+get_grad_values <- K$`function`(list(model$input), gradients)
+grads <- get_grad_values(list(poor_frog))[[1]] %>% sign()
+
+adv <- poor_frog + grads * 0.02
+new_frog_prob <- model %>% predict_proba(adv)
+print(paste("Predicted probability for ship: ", round(new_frog_prob,4)))
+```
+
+And how does our frog look now?
+
+
+The frog who turned ship (2)
 ========================================================
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
@@ -565,6 +745,12 @@ Takeaway: Optimization and Calculus
 
 
 &nbsp;
+
+```{r, fig.width=2, fig.height=2}
+adv_2d <- adv
+dim(adv_2d) <- c(32,32,3)
+plot_as_image(adv_2d)
+```
 
 
 ========================================================
