@@ -83,12 +83,15 @@ type:prompt
 &nbsp; 
 
 <h1>
-Part 1: Why should I know about calculus?
+Part 1: Why should I care about calculus?
 </h1>
 
 
 CIFAR-10 dataset
 ========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 &nbsp;
 
@@ -119,9 +122,9 @@ source("functions.R")
 &nbsp;
 
 ```{r}
-layout(matrix(1:20, 4, 5))
+layout(matrix(1:80, 8, 10))
 
-for (i in 1:20) {
+for (i in 1:80) {
   img <- EBImage::transpose(Image(data = x_train[i, , , ], colormode = "Color"))
   display(img, method="raster", all = TRUE)
 }
@@ -129,13 +132,12 @@ for (i in 1:20) {
 ```
 
 
-&nbsp;
-
 Let's just pick two classes, keeping it simple...
 
 
 Ship or frog?
 ========================================================
+class:smallcode
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
@@ -148,9 +150,7 @@ Ship or frog?
 - Now let's pick some ship ...
 
 ```{r,  fig.width=2, fig.height=2}
-poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
 some_ship <- x_train_combined[5007, , ,  ,drop = FALSE]
-poor_frog_img <- x_train_combined[9, , , ]
 some_ship_img <- x_train_combined[5007, , , ] 
 
 layout(1)
@@ -171,11 +171,16 @@ paste("Predicted probability for ship: ", round(ship_prob, 4))
 ```
 
 
-So let's make a small change to that ship...
+So let's make some "random" changes to that image ...
 ========================================================
+class:smallcode
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+... and see what the net says now:
 
 &nbsp;
 
@@ -203,25 +208,16 @@ evaluated_gradients <- sess$run(gradients,
 ship_grads <- evaluated_gradients[[1]]
 sgn_ship_grads <- sign(ship_grads)
 
-adv <- some_ship + 0.123 * sgn_ship_grads
+adv <- some_ship + 0.14 * sgn_ship_grads
 adv <- ifelse(adv > 1, 1, adv)
 adv <- ifelse(adv < 0, 0, adv)
 plot_as_image(adv[1, , , ])
 
 new_ship_prob <- model %>% predict_proba(adv)
-```
-
-&nbsp;
-
-... and see what the net says now:
-
-&nbsp;
-
-```{r}
 print(paste("Predicted probability for ship: ", round(new_ship_prob,4)))
 ```
 
-
+&nbsp;
 
 
 
@@ -362,6 +358,8 @@ The frog who turned ship (1)
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 
+&nbsp;
+
 ```{r, fig.width=2, fig.height=2}
 adv_2d <- adv
 dim(adv_2d) <- c(32,32,3)
@@ -369,7 +367,10 @@ plot_as_image(adv_2d)
 ```
 
 
-The change is hardly visible - much less than with the first example that used a convnet.
+&nbsp;
+
+
+The change is hardly visible - much less than with the first example that used a convnet and included nonlinearities.
 
 
 OK, but that was just simple logistic regression... 
@@ -418,7 +419,6 @@ Minimizing the cost: Gradient Descent
 
 In optimization, normally we iteratively _subtract_ (a fraction of) the gradient to reach the/a minimum of the cost function.
 
-&nbsp:
 
 In this graphic, cost is a quadratic function, e.g., _mean squared error_:
 
@@ -438,7 +438,7 @@ Loss for logistic regression
 
 &nbsp;
 
-In two-class classification (be it shallow logistic regression or a deep convnet), the loss to minimize is binary cross entropy:
+In two-class classification (be it shallow logistic regression or a deep convnet), the loss to minimize is cross entropy:
 
 $- \sum_j{t_j log(y_j)}$
 
@@ -477,9 +477,7 @@ What a neural network needs for learning
 &nbsp;
 
 - a cost function: How different is my prediction from my target?
-  (This we've seen already.)
 - a way to learn (optimization): How do I adapt my _weights_ such that my predictions get better?
-  (This we've looked at, too.)
 - a way to back propagate the cost: How do weights _earlier_ in the network change the predictions (and thus, the cost)?
 
 &nbsp;
@@ -529,7 +527,6 @@ Here
 
 <figure>
     <img src='backprop4.png' width="20%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
@@ -544,12 +541,11 @@ Learning weights by backpropagation (2)
 
 <figure>
     <img src='backprop4.png' width="15%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
 
-Step 1: Loss w.r.t. output (prediction)
+__Step 1: Loss w.r.t. output (prediction)__
 
 At the output layer $j$, we compare class prediction $y_j$ and actual class $t$, using binary cross entropy/logistic loss: 
 $- (t\:log(y) + (1-t)\:log(1-y))$ 
@@ -571,12 +567,11 @@ Learning weights by backpropagation (2)
 
 <figure>
     <img src='backprop4.png' width="15%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
   
-Step 2: How does the prediction/output $y_j$ change as the input $z_j$ to the final neuron changes?
+__Step 2: How does the prediction/output $y_j$ change as the input $z_j$ to the final neuron changes?__
 
 In the case of a logistic (sigmoid) neuron with output $y_j$, this is described by the gradient
 
@@ -593,12 +588,11 @@ Learning weights by backpropagation (3)
 
 <figure>
     <img src='backprop4.png' width="15%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
   
-Step 3a: How does the input $z_j$ to the final layer change as the weight $w_{ij}$ changes?
+__Step 3a: How does the input $z_j$ to the final layer change as the weight $w_{ij}$ changes?__
 
 Here the gradient is 
 
@@ -617,12 +611,11 @@ Learning weights by backpropagation (4)
 
 <figure>
     <img src='backprop4.png' width="15%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
   
-Step 3b: How does the input $z_j$ to the final layer change as the output of layer $i$ changes?
+__Step 3b: How does the input $z_j$ to the final layer change as the output of layer $i$ changes?__
 
 Here we have to take into account all connections a neuron $y_i$ has to the output layer: The gradient is 
 
@@ -642,12 +635,11 @@ Learning weights by backpropagation: Putting it all together
 
 <figure>
     <img src='backprop4.png' width="15%"/>
-    <figcaption>Source: tbd</a></figcaption>
 </figure>
 
 &nbsp;
   
-Now that we have the single gradients, we use the _chain rule_ to back propagate the error:
+__Now that we have the single gradients, we use the _chain rule_ to back propagate the error:__
 
 The gradient of the loss w.r.t. $y_i$ is
 
@@ -689,7 +681,14 @@ Enter: Fast Gradient Sign Method (FGSM)
 
 &nbsp;
 
-As shown in Goodfellow et al., <a href="https://arxiv.org/pdf/1412.6572.pdf">Explaining and harnessing adversarial examples</a>, we can just take the sign of the gradient, scale it by a factor $\epsilon$, reflecting the "resolution" of the measurements, and add that to the input image:
+As shown in Goodfellow et al.,
+
+<a href="https://arxiv.org/pdf/1412.6572.pdf">Explaining and harnessing adversarial examples</a>,
+
+we can just take the sign of the gradient, scale it by a factor $\epsilon$, reflecting the "resolution" of the measurements, and add that to the input image:
+
+
+&nbsp;
 
 $x = x + \epsilon \: sign(\nabla x (J(\theta, x ,y)))$
 
@@ -761,7 +760,198 @@ type:prompt
 &nbsp; 
 
 <h1>
-Part 2: Why should I know about matrices?
+Part 2: Why should I care about matrices?
 </h1>
 
 
+Everything is a matrix (or tensor)
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Images are.
+
+&nbsp;
+
+Our little
+
+```{r, fig.width=2, fig.height=2}
+poor_frog <- x_train_combined[9, , ,  ,drop = FALSE]
+poor_frog_img <- x_train_combined[9, , , ] 
+plot_as_image(poor_frog_img)
+```
+
+is just coded like this...
+
+```{r}
+poor_frog[1, 1:8, 1:8 ,2]
+```
+
+
+
+Everything is a matrix (or tensor)
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Documents are.
+
+&nbsp;
+
+In text classification, we have term-document matrices
+
+```{r}
+df <- data.frame(
+  doc1 = c(2,0,0,0,1,1,0,0,0,1,2,0,0,0,1,1,0,0,0,1),
+  doc2 = c(1,2,0,0,2,0,0,0,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc3 = c(1,2,0,0,2,0,0,0,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc4 = c(1,1,0,0,2,0,0,2,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc5 = c(0,0,0,0,2,0,0,2,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc6 = c(0,2,0,0,2,0,0,1,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc7 = c(0,2,0,0,2,0,0,2,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc8 = c(0,2,0,0,2,0,0,1,0,0,2,0,0,0,1,1,0,0,0,1),
+  doc9 = c(1,2,0,0,2,0,0,0,0,0,2,0,0,0,1,1,0,0,0,1)
+)
+rownames(df) <- c("word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8", "word9", "word10", "word11", "word12", "word13", "word14", "word15", "word16", "word17", "word18", "word19","word20")
+df
+```
+
+
+Everything is a matrix (or tensor)
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Even normal dataframes are.
+
+<figure>
+    <img src='iris.jpg' width='20%'/>
+</figure>
+
+```{r}
+iris[1:10, ]
+```
+
+
+First things first: Matrix multiplication (1)
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Let's say we're building our own neural network, starting with a 8*4 input matrix X and a hidden layer of capacity (number of neurons) 4.
+
+```{r, echo=TRUE}
+X <- matrix(1:32, nrow = 8, ncol = 4, byrow = TRUE)
+X
+```
+
+&nbsp;
+
+What shape do we need for the weights matrix going into that hidden layer?
+
+First things first: Matrix multiplication (2)
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Weights matrix is 4*4.
+
+```{r, echo=TRUE}
+W <- matrix(rnorm(16), nrow = 4, ncol = 4)
+```
+
+&nbsp;
+
+Then matrix-multiplying X and W gives the aggregated inputs into each hidden neuron for each input sample.
+
+```{r, echo=TRUE}
+X %*% W
+```
+
+
+The magic behind convnets: Convolutions
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+
+LeNet: First successful application of convolutional neural networks by Yann LeCun, Yoshua Bengio et al.
+
+<figure>
+    <img src='lenet.png' width='80%'/>
+    <figcaption>Source: http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf</figcaption>
+</figure>
+
+
+
+The convolution operation
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+<figure>
+    <img src='2dconv.png' width='40%'/>
+    <figcaption>Source: Goodfellow et al., Deep Learning.</figcaption>
+</figure>
+
+
+Convolution as matrix multiplication
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+
+
+
+
+The hidden magic: Matrix decompositions
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+_QR, LU, SVD, NMF, eigendecomposition..._
+
+&nbsp;
+
+Motivations
+
+- semantic: find underlying factors/components (e.g., topics in document classification)
+
+#http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/1.%20Why%20are%20we%20h#ere.ipynb#Matrix-and-Tensor-Products
+
+- technical: facilitate computations (e.g., Least Squares)
+
+# http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/6.%20How%20to%20Implement%20Linear%20Regression.ipynb
