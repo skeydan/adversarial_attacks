@@ -14,6 +14,7 @@
 
 .reveal h1 {
   font-size: 2em;
+  hyphens: none;
 }
 
 .reveal h3 {
@@ -28,6 +29,10 @@
   font-size: 1em;
 }
 
+.smallercode pre code {
+  font-size: .9em;
+}
+
 .reveal .smalltext {
   font-size: 0.75em;
 }
@@ -39,10 +44,10 @@
 </style>
 
 
-I'm a developer, why should I care about matrices or calculus?
+I'm a developer, - why should I care about matrices or calculus?
 ========================================================
 author: Sigrid Keydana, Trivadis
-date: 
+date: 12/05/2017
 autosize: true
 incremental:false
 width: 1400
@@ -112,6 +117,7 @@ library(tensorflow)
 library(keras)
 K <- keras::backend()
 library(EBImage)
+library(lars)
 source("load_frogs_ships.R")
 source("functions.R")
 ```
@@ -160,8 +166,6 @@ plot_as_image(some_ship_img)
 &nbsp;
 
 ... and predict it's class probability:
-
-&nbsp;
 
 ```{r}
 model_name <- "frogs_ships_conv.h5"
@@ -660,7 +664,7 @@ Backprop, the evil way...
 
 &nbsp;
 
-We can the same mechanics of loss calculation and backpropagation, just
+We can use the same mechanics of loss calculation and backpropagation, just
 
 - we change the input, not the weights
 - we _maximize_ the loss by _adding_, not subtracting (some fraction of) the gradient 
@@ -917,41 +921,284 @@ The convolution operation
 &nbsp;
 
 <figure>
-    <img src='2dconv.png' width='40%'/>
+    <img src='2dconv.png' width='60%'/>
     <figcaption>Source: Goodfellow et al., Deep Learning.</figcaption>
 </figure>
 
 
-Convolution as matrix multiplication
+Convolution as matrix multiplication (1)
 ========================================================
+class:smallcode
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 &nbsp;
 
+We have an input image x ... 
+
+```{r}
+(x <- matrix(1:9, nrow = 3, byrow = TRUE))
+```
+
+and a convolution kernel k...
+
+```{r}
+(k <- matrix(c(1,2,3,4), nrow = 2, byrow = TRUE))
+```
+
+We transform k into a _doubly block-circulant matrix_ ...
+
+```{r}
+(k <- matrix(c(1,2,0,3,4,0,0,0,0,
+              0,1,2,0,3,4,0,0,0,
+              0,0,0,1,2,0,3,4,0,
+              0,0,0,0,1,2,0,3,4),
+            nrow = 4,
+            byrow = TRUE))
+```
+
+and flatten x into a vector...
+
+```{r}
+(x<-1:9)
+```
 
 
+Convolution as matrix multiplication (2)
+========================================================
+class:smallcode
 
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Now we can get the convolved image by matrix-multiplying k and x:
+
+```{r, echo=TRUE}
+k %*% x
+```
+
+
+This is the same we get when performing the convolution "manually":
+
+```{r, echo=TRUE, results="hide"}
+y1 <- 1*1 + 2*2 + 3*4 + 4*5
+y2 <- 1*2 + 2*3 + 3*5 + 4*6
+y3 <- 1*4 + 2*5 + 3*7 + 4*8
+y4 <- 1*5 + 2*6 + 3*8 + 4*9
+```
+
+
+Now just convert the vector back to a matrix:
+
+```{r}
+(y <- matrix(c(y1,y2,y3,y4), nrow = 2, byrow = TRUE))
+```
 
 The hidden magic: Matrix decompositions
 ========================================================
+class:smallcode
 
 <img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
 <img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
 
 &nbsp;
 
-_QR, LU, SVD, NMF, eigendecomposition..._
+_QR, LU, SVD, NMF, eigen..._
 
 &nbsp;
 
 Motivations
 
-- semantic: find underlying factors/components (e.g., topics in document classification)
-
-#http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/1.%20Why%20are%20we%20h#ere.ipynb#Matrix-and-Tensor-Products
+- semantic: find latent factors/components  
+    - topics (e.g., in document classification)
+    - features (e.g., in image or audio data)
 
 - technical: facilitate computations (e.g., Least Squares)
 
-# http://nbviewer.jupyter.org/github/fastai/numerical-linear-algebra/blob/master/nbs/6.%20How%20to%20Implement%20Linear%20Regression.ipynb
+```{r, echo=TRUE, results="hide"}
+?lm
+```
+
+```
+lm(formula, data, subset, weights, na.action,
+   method = "qr", model = TRUE, x = FALSE, y = FALSE, qr = TRUE,
+   singular.ok = TRUE, contrasts = NULL, offset, ...)
+```
+
+Applications: How it works
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+&nbsp;
+
+<figure>
+    <img src='factorisation.png' width='60%' />
+    <figcaption>Source: <a href="http://perso.telecom-paristech.fr/~essid/teach/NMF_tutorial_ICME-2014.pdf" >Essid, S. & Ozerov, A.: A tutorial on nonnegative matrix factorisation with applications to audiovisual content analysis</a></figcaption>
+</figure>
+
+
+Finding topics in documents
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+&nbsp;
+
+<figure>
+    <img src='topics.png' width='70%' />
+    <figcaption>Source: <a href="http://perso.telecom-paristech.fr/~essid/teach/NMF_tutorial_ICME-2014.pdf" >Essid, S. & Ozerov, A.: A tutorial on nonnegative matrix factorisation with applications to audiovisual content analysis</a></figcaption>
+</figure>
+
+
+Finding "facial features"
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+&nbsp;
+
+<figure>
+    <img src='facialfeatures.png' width='60%' />
+    <figcaption>Source: <a href="http://perso.telecom-paristech.fr/~essid/teach/NMF_tutorial_ICME-2014.pdf" >Essid, S. & Ozerov, A.: A tutorial on nonnegative matrix factorisation with applications to audiovisual content analysis</a></figcaption>
+</figure>
+
+
+Soft clustering
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+&nbsp;
+
+<figure>
+    <img src='clustering.png' width='60%' />
+    <figcaption>Source: <a href="http://perso.telecom-paristech.fr/~essid/teach/NMF_tutorial_ICME-2014.pdf" >Essid, S. & Ozerov, A.: A tutorial on nonnegative matrix factorisation with applications to audiovisual content analysis</a></figcaption>
+</figure>
+
+
+Technical: Matrix factorizations for least squares
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+Linear regression $\hat y = \alpha + \beta_1 x_1 + \beta_2 x_2 ... + \beta_n x_n$
+
+has a naive solution using the _normal equations_
+
+$A^TAx= A^Tb$    &nbsp; &nbsp; (from $A^T(b - A \hat x) = 0)$)
+
+which means we need to find the inverse $(A^TA)^{-1}$ to get $x$.
+<figure>
+    <img src='ls.png' width='40%' />
+    <figcaption>Source:<a href=" http://www.stat.wisc.edu/~ifischer/Intro_Stat/Lecture_Notes/APPENDIX/A2._Geometric_Viewpoint/A2.3_-_Least_Squares_Approximation.pdf">
+    http://www.stat.wisc.edu/~ifischer/Intro_Stat/Lecture_Notes/APPENDIX/A2._Geometric_Viewpoint/A2.3_-_Least_Squares_Approximation.pdf
+    </a>
+    </figcaption>
+</figure>
+
+So what's bad about taking the inverse?
+========================================================
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+- slow
+- numerical instability
+- sparse matrices have dense inverses (most of the time)
+
+
+Least Squares via matrix inverse
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+```{r, echo=TRUE}
+data(diabetes)
+X <- diabetes$x
+y <- diabetes$y
+X_with_intercept <- cbind(rep(1, nrow(X)), X)
+
+(beta_hat <- solve(t(X_with_intercept) %*% X_with_intercept) %*% t(X_with_intercept) %*% y)
+```
+
+
+
+Least Squares via QR decomposition
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+<figure>
+    <img src='qr.png' width='60%' />
+    <figcaption>Source:<a href=" http://www.sharetechnote.com/html/Handbook_EngMath_Matrix_QRDecomposition.html">
+    http://www.sharetechnote.com/html/Handbook_EngMath_Matrix_QRDecomposition.html
+    </a>
+    </figcaption>
+</figure>
+
+```{r, echo=TRUE}
+# A = QR  
+# QRx = b    ### Q inverse = Q transpose
+# Rx = Q'b   ### x = backsubstitute(R, Q'b)
+
+qr_solve <- function(A, b) {
+  A_qr <- qr(A)
+  R <- qr.R(A_qr)
+  Q <- qr.Q(A_qr)
+  backsolve(R, t(Q) %*% b)
+}
+```
+
+
+The end, kind of
+========================================================
+class:smallcode
+
+<img src="tri_logo_high.jpg" style="position:absolute;top:0px;right:0px; width: 10%" />
+<img src='cube3.png' border=0 style="position:absolute;top:90%;right:0px; width: 8%" />
+
+&nbsp;
+
+
+Hope I've been successful a bit in arousing your curiosity about calculus and linear algebra :-)
+
+There's a lot you could do without, but it'd be half the fun ;-)
+
+&nbsp;
+
+&nbsp;
+
+Questions?
+
+Thanks for your attention!!
+
+
